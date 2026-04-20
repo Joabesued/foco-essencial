@@ -96,6 +96,14 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
 .countdown-card{text-align:center}
 .countdown-num{font-family:var(--serif);font-size:52px;font-weight:700;color:var(--accent);line-height:1}
 .countdown-label{font-size:12px;color:var(--dim);margin-top:2px}
+.goal-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.goal-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:2px;color:var(--accent);cursor:pointer}
+.goal-check.done{background:var(--accent);color:var(--bg)}
+.goal-text{font-size:14px;font-weight:500;line-height:1.4}
+.goal-text.done{text-decoration:line-through;opacity:.5}
+.goal-sub{font-size:11px;color:var(--dim);margin-top:2px}
+.goal-progress{height:3px;background:#1A1A1A;border-radius:2px;margin-top:6px;overflow:hidden}
+.goal-progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .6s}
 
 /* Notification banner */
 .notif-banner{background:#1a1508;border:1px solid #3a3010;border-radius:10px;padding:14px;margin-bottom:12px;text-align:center}
@@ -188,6 +196,15 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
     <div id="refl-body" class="hidden"></div>
   </div>
 
+  <!-- Goals -->
+  <div class="card fi fi5" id="goals-card">
+    <div class="refl-header" onclick="toggleGoals()">
+      <span class="label">METAS 2026</span>
+      <span class="refl-toggle" id="goals-toggle">+</span>
+    </div>
+    <div id="goals-body" class="hidden" style="margin-top:10px"></div>
+  </div>
+
   <div class="nav-row fi fi6">
     <button class="nav-btn" onclick="go('log')">📝 Log</button>
     <button class="nav-btn" onclick="go('stats')">📊 Relatório</button>
@@ -223,6 +240,14 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
   <h2 class="scr-title">Plano 90 Dias</h2>
   <p class="scr-sub">De 18 de abril a 17 de julho. Prova: 23 de agosto.</p>
   <div id="plan-content"></div>
+</div>
+
+<!-- GOALS -->
+<div id="s-goals" class="page hidden">
+  <button class="back-btn" onclick="go('home')">← Voltar</button>
+  <h2 class="scr-title">Metas 2026</h2>
+  <p class="scr-sub">Estas são as metas que definem seu ano. Tudo o que você faz no dia a dia serve a elas.</p>
+  <div id="goals-full"></div>
 </div>
 
 </div>
@@ -291,9 +316,16 @@ const NOTIF_SCHEDULE = [
 ];
 
 /* ═══════ STATE ═══════ */
-let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{}};
-let editPri=-1, reflOpen=false, routineOpen=false;
+let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{}};
+let editPri=-1, reflOpen=false, routineOpen=false, goalsOpen=false;
 let swReady=null;
+
+/* ═══════ GOALS ═══════ */
+const GOALS_2026=[
+  {id:"enceja",title:"Passar no ENCEJA",desc:"Certificação do ensino médio — prova em 23 de agosto",icon:"📜",steps:["Inscrição (4-15 maio)","Estudar 40min/dia na Fase 3","Completar 10 redações","Resolver 5 provas anteriores","Dia da prova: 23/08"]},
+  {id:"facul",title:"Entrar na faculdade",desc:"Filosofia — iniciar os estudos formais",icon:"🎓",steps:["Passar no ENCEJA primeiro","Pesquisar universidades/cursos","Inscrição vestibular/ENEM","Preparar documentação"]},
+  {id:"filo",title:"Aprofundar em Filosofia",desc:"Existencialismo, Ética e Filosofia da Religião",icon:"🏛️",steps:["Ler A Queda (Camus)","Ler O Existencialismo é um Humanismo (Sartre)","Avançar no livro pessoal sobre responsabilidade","Manter leitura diária consistente"]},
+];
 
 /* ═══════ UTILS ═══════ */
 function tod(){return new Date().toISOString().split("T")[0]}
@@ -379,11 +411,12 @@ setInterval(checkNotifications,30000);
 
 /* ═══════ SCREENS ═══════ */
 function go(s){
-  ["home","log","stats","plan"].forEach(n=>document.getElementById("s-"+n).classList.toggle("hidden",n!==s));
+  ["home","log","stats","plan","goals"].forEach(n=>document.getElementById("s-"+n).classList.toggle("hidden",n!==s));
   if(s==="home")renderHome();
   if(s==="log")renderLog();
   if(s==="stats")renderStats();
   if(s==="plan")renderPlan();
+  if(s==="goals")renderGoalsFull();
   window.scrollTo(0,0);
 }
 
@@ -501,7 +534,66 @@ function confirmSleep(){
 function savePri(i){const inp=document.getElementById("pi-"+i);if(inp&&inp.value.trim())D.priorities[i]=inp.value.trim();editPri=-1;save();renderPriorities();}
 function toggleReflection(){reflOpen=!reflOpen;document.getElementById("refl-body").classList.toggle("hidden",!reflOpen);document.getElementById("refl-toggle").textContent=reflOpen?"−":"+";}
 function toggleRoutine(){routineOpen=!routineOpen;document.getElementById("routine-body").classList.toggle("hidden",!routineOpen);document.getElementById("routine-toggle").textContent=routineOpen?"−":"+";}
+function toggleGoals(){goalsOpen=!goalsOpen;document.getElementById("goals-body").classList.toggle("hidden",!goalsOpen);document.getElementById("goals-toggle").textContent=goalsOpen?"−":"+";if(goalsOpen)renderGoalsHome();}
 
+function toggleGoalStep(goalId,stepIdx){
+  if(!D.goalSteps)D.goalSteps={};
+  const key=goalId+"-"+stepIdx;
+  D.goalSteps[key]=!D.goalSteps[key];
+  save();
+  if(goalsOpen)renderGoalsHome();
+}
+
+function getGoalProgress(goalId,totalSteps){
+  if(!D.goalSteps)return 0;
+  let done=0;
+  for(let i=0;i<totalSteps;i++){if(D.goalSteps[goalId+"-"+i])done++;}
+  return done;
+}
+
+function renderGoalsHome(){
+  const body=document.getElementById("goals-body");
+  body.innerHTML=GOALS_2026.map(g=>{
+    const done=getGoalProgress(g.id,g.steps.length);
+    const pct=Math.round((done/g.steps.length)*100);
+    return`<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:20px">${g.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${g.title}</div>
+          <div style="font-size:11px;color:var(--dim)">${done}/${g.steps.length} etapas</div>
+        </div>
+        <div style="font-size:13px;color:var(--accent);font-weight:700">${pct}%</div>
+      </div>
+      <div class="goal-progress" style="margin-top:6px"><div class="goal-progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("")+'<div style="text-align:center;padding-top:12px"><button class="btn-gold" onclick="go(\'goals\')" style="font-size:12px;padding:8px 16px">Ver detalhes</button></div>';
+}
+
+function renderGoalsFull(){
+  document.getElementById("goals-full").innerHTML=GOALS_2026.map(g=>{
+    const done=getGoalProgress(g.id,g.steps.length);
+    const pct=Math.round((done/g.steps.length)*100);
+    return`<div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:26px">${g.icon}</span>
+        <div>
+          <div style="font-family:var(--serif);font-size:20px;font-weight:700">${g.title}</div>
+          <div class="dim">${g.desc}</div>
+        </div>
+      </div>
+      <div class="goal-progress" style="margin:8px 0"><div class="goal-progress-fill" style="width:${pct}%"></div></div>
+      <div style="font-size:11px;color:var(--accent);margin-bottom:8px">${done}/${g.steps.length} etapas — ${pct}%</div>
+      ${g.steps.map((s,i)=>{
+        const checked=D.goalSteps&&D.goalSteps[g.id+"-"+i];
+        return`<div class="goal-item" onclick="toggleGoalStep('${g.id}',${i});renderGoalsFull()">
+          <div class="goal-check ${checked?'done':''}">${checked?'✓':''}</div>
+          <div class="goal-text ${checked?'done':''}">${s}</div>
+        </div>`;
+      }).join("")}
+    </div>`;
+  }).join("");
+}
 /* ═══════ LOG ═══════ */
 function renderLog(){
   const cd=Math.min(daysFrom(D.startDate),90);
@@ -542,7 +634,7 @@ function renderPlan(){
 }
 
 /* ═══════ RESET ═══════ */
-function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{}};save();editPri=-1;reflOpen=false;routineOpen=false;go("home");}
+function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{}};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
 
 /* ═══════ INIT ═══════ */
 registerSW();
