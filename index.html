@@ -109,6 +109,26 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
 .notif-banner{background:#1a1508;border:1px solid #3a3010;border-radius:10px;padding:14px;margin-bottom:12px;text-align:center}
 .notif-banner button{margin-top:8px}
 .notif-status{font-size:11px;color:var(--dim);text-align:center;margin-bottom:8px}
+
+/* Weekly tasks */
+.wk-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.wk-day{font-size:12px;font-weight:600;color:var(--accent);letter-spacing:1px;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-top:12px}
+.wk-day:first-child{margin-top:0}
+.wk-task{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #111}
+.wk-check{width:22px;height:22px;border-radius:6px;border:2px solid #333;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px;cursor:pointer;transition:all .2s}
+.wk-check.done{background:var(--green);border-color:var(--green);color:#B0E8C4}
+.wk-info{flex:1;min-width:0}
+.wk-task-text{font-size:13px;line-height:1.4}
+.wk-task-text.done{text-decoration:line-through;opacity:.4}
+.wk-task-time{font-size:11px;color:var(--dim);margin-top:2px}
+.wk-add-row{display:flex;gap:6px;margin-top:8px}
+.wk-add-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);outline:none;font-family:var(--sans)}
+.wk-add-btn{background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600}
+.wk-del{background:none;border:none;color:#444;font-size:16px;cursor:pointer;padding:0 4px;flex-shrink:0}
+.wk-summary{font-size:12px;color:var(--dim);text-align:center;margin-top:12px}
+.wk-tabs{display:flex;gap:4px;margin-bottom:12px;overflow-x:auto}
+.wk-tab{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;color:var(--dim);cursor:pointer;white-space:nowrap;font-family:var(--sans)}
+.wk-tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -188,6 +208,15 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
     <div id="pri-container"></div>
   </div>
 
+  <!-- Weekly tasks summary -->
+  <div class="card fi fi4" id="week-summary-card" onclick="go('week')" style="cursor:pointer">
+    <div class="refl-header">
+      <span class="label">TAREFAS DA SEMANA</span>
+      <span class="refl-toggle">→</span>
+    </div>
+    <div id="week-home-summary" style="margin-top:8px"></div>
+  </div>
+
   <div class="card fi fi5" id="refl-card">
     <div class="refl-header" onclick="toggleReflection()">
       <span class="label">DOSE DE REFLEXÃO</span>
@@ -206,6 +235,7 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
   </div>
 
   <div class="nav-row fi fi6">
+    <button class="nav-btn" onclick="go('week')">📅 Semana</button>
     <button class="nav-btn" onclick="go('log')">📝 Log</button>
     <button class="nav-btn" onclick="go('stats')">📊 Relatório</button>
     <button class="nav-btn" onclick="go('plan')">📋 Plano</button>
@@ -248,6 +278,18 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
   <h2 class="scr-title">Metas 2026</h2>
   <p class="scr-sub">Estas são as metas que definem seu ano. Tudo o que você faz no dia a dia serve a elas.</p>
   <div id="goals-full"></div>
+</div>
+
+<!-- WEEKLY TASKS -->
+<div id="s-week" class="page hidden">
+  <button class="back-btn" onclick="go('home')">← Voltar</button>
+  <div class="wk-header">
+    <h2 class="scr-title">Semana</h2>
+    <button class="btn-gold" onclick="clearWeekDone()" style="font-size:11px;padding:6px 12px">Limpar concluídas</button>
+  </div>
+  <div class="wk-tabs" id="wk-tabs"></div>
+  <div id="wk-content"></div>
+  <div id="wk-summary"></div>
 </div>
 
 </div>
@@ -316,7 +358,7 @@ const NOTIF_SCHEDULE = [
 ];
 
 /* ═══════ STATE ═══════ */
-let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{}};
+let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[]};
 let editPri=-1, reflOpen=false, routineOpen=false, goalsOpen=false;
 let swReady=null;
 
@@ -411,12 +453,13 @@ setInterval(checkNotifications,30000);
 
 /* ═══════ SCREENS ═══════ */
 function go(s){
-  ["home","log","stats","plan","goals"].forEach(n=>document.getElementById("s-"+n).classList.toggle("hidden",n!==s));
+  ["home","log","stats","plan","goals","week"].forEach(n=>document.getElementById("s-"+n).classList.toggle("hidden",n!==s));
   if(s==="home")renderHome();
   if(s==="log")renderLog();
   if(s==="stats")renderStats();
   if(s==="plan")renderPlan();
   if(s==="goals")renderGoalsFull();
+  if(s==="week")renderWeek();
   window.scrollTo(0,0);
 }
 
@@ -480,6 +523,27 @@ function renderHome(){
   document.getElementById("refl-body").innerHTML=`<div class="refl-quote">"${ref.t}"</div><div class="refl-author">— ${ref.a}</div><div class="refl-context">${ref.c}</div>`;
   document.getElementById("refl-body").classList.toggle("hidden",!reflOpen);
   document.getElementById("refl-toggle").textContent=reflOpen?"−":"+";
+
+  // Weekly tasks summary on home
+  ensureWeekTasks();
+  const wid=getWeekId();
+  const wkAll=D.weekTasks.filter(t=>t.weekId===wid);
+  const wkDone=wkAll.filter(t=>t.done).length;
+  const wkTotal=wkAll.length;
+  const todayDow=new Date().getDay();
+  const todayTasks=wkAll.filter(t=>t.day===todayDow);
+  const todayDone=todayTasks.filter(t=>t.done).length;
+  const whs=document.getElementById("week-home-summary");
+  if(wkTotal>0){
+    const pct=Math.round((wkDone/wkTotal)*100);
+    whs.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
+      <span>Hoje: ${todayDone}/${todayTasks.length} · Semana: ${wkDone}/${wkTotal}</span>
+      <span style="color:var(--accent);font-weight:700">${pct}%</span>
+    </div>
+    <div class="goal-progress" style="margin-top:6px"><div class="goal-progress-fill" style="width:${pct}%"></div></div>`;
+  } else {
+    whs.innerHTML=`<div class="dim" style="font-size:12px">Toque para adicionar tarefas da semana</div>`;
+  }
 
   const sb=document.getElementById("shutdown-banner");
   if(isShut){sb.classList.remove("hidden");sb.textContent='"Joabe, cada hora que você rouba do sono, está roubando de si mesmo amanhã."';}else sb.classList.add("hidden");
@@ -594,6 +658,112 @@ function renderGoalsFull(){
     </div>`;
   }).join("");
 }
+/* ═══════ WEEKLY TASKS ═══════ */
+const WEEKDAYS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+let wkSelectedDay=-1; // -1 = all
+
+function getWeekId(){
+  const d=new Date();const start=new Date(d);start.setDate(d.getDate()-d.getDay());
+  return start.toISOString().split("T")[0];
+}
+
+function ensureWeekTasks(){
+  if(!D.weekTasks)D.weekTasks=[];
+  // Clean tasks older than 2 weeks
+  const twoWeeksAgo=new Date();twoWeeksAgo.setDate(twoWeeksAgo.getDate()-14);
+  const cutoff=twoWeeksAgo.toISOString().split("T")[0];
+  D.weekTasks=D.weekTasks.filter(t=>t.weekId>=cutoff);
+}
+
+function getTasksForWeek(){
+  ensureWeekTasks();
+  const wid=getWeekId();
+  return D.weekTasks.filter(t=>t.weekId===wid);
+}
+
+function addWeekTask(dayIdx,text){
+  if(!text.trim())return;
+  ensureWeekTasks();
+  D.weekTasks.push({id:Date.now().toString(),weekId:getWeekId(),day:dayIdx,text:text.trim(),done:false});
+  save();
+}
+
+function toggleWeekTask(id){
+  ensureWeekTasks();
+  const t=D.weekTasks.find(t=>t.id===id);
+  if(t)t.done=!t.done;
+  save();
+}
+
+function deleteWeekTask(id){
+  ensureWeekTasks();
+  D.weekTasks=D.weekTasks.filter(t=>t.id!==id);
+  save();
+}
+
+function clearWeekDone(){
+  ensureWeekTasks();
+  const wid=getWeekId();
+  D.weekTasks=D.weekTasks.filter(t=>!(t.weekId===wid&&t.done));
+  save();renderWeek();
+}
+
+function renderWeek(){
+  ensureWeekTasks();
+  const wid=getWeekId();
+  const tasks=D.weekTasks.filter(t=>t.weekId===wid);
+  const today=new Date().getDay();
+
+  // Tabs
+  const tabs=document.getElementById("wk-tabs");
+  const allActive=wkSelectedDay===-1?"active":"";
+  let tabsHtml=`<button class="wk-tab ${allActive}" onclick="wkSelectedDay=-1;renderWeek()">Todas</button>`;
+  WEEKDAYS.forEach((d,i)=>{
+    const active=wkSelectedDay===i?"active":"";
+    const isToday=i===today?" ●":"";
+    const count=tasks.filter(t=>t.day===i).length;
+    tabsHtml+=`<button class="wk-tab ${active}" onclick="wkSelectedDay=${i};renderWeek()">${d}${isToday}${count?` (${count})`:""}</button>`;
+  });
+  tabs.innerHTML=tabsHtml;
+
+  // Content
+  const content=document.getElementById("wk-content");
+  const daysToShow=wkSelectedDay===-1?[0,1,2,3,4,5,6]:[wkSelectedDay];
+
+  let html="";
+  daysToShow.forEach(dayIdx=>{
+    const dayTasks=tasks.filter(t=>t.day===dayIdx);
+    const isToday=dayIdx===today;
+    html+=`<div class="wk-day" style="${isToday?'color:#B0E8C4':''}">${WEEKDAYS[dayIdx]}${isToday?" — HOJE":""}</div>`;
+
+    if(dayTasks.length===0){
+      html+=`<div style="padding:8px 0;font-size:12px;color:#333">Nenhuma tarefa</div>`;
+    }
+
+    dayTasks.forEach(t=>{
+      html+=`<div class="wk-task">
+        <div class="wk-check ${t.done?'done':''}" onclick="toggleWeekTask('${t.id}');renderWeek()">${t.done?'✓':''}</div>
+        <div class="wk-info"><div class="wk-task-text ${t.done?'done':''}">${esc(t.text)}</div></div>
+        <button class="wk-del" onclick="deleteWeekTask('${t.id}');renderWeek()">×</button>
+      </div>`;
+    });
+
+    html+=`<div class="wk-add-row">
+      <input class="wk-add-input" id="wk-input-${dayIdx}" placeholder="Nova tarefa..." onkeydown="if(event.key==='Enter'){addWeekTask(${dayIdx},this.value);this.value='';renderWeek()}">
+      <button class="wk-add-btn" onclick="const i=document.getElementById('wk-input-${dayIdx}');addWeekTask(${dayIdx},i.value);i.value='';renderWeek()">+</button>
+    </div>`;
+  });
+
+  content.innerHTML=html;
+
+  // Summary
+  const total=tasks.length;
+  const done=tasks.filter(t=>t.done).length;
+  const pct=total>0?Math.round((done/total)*100):0;
+  document.getElementById("wk-summary").innerHTML=total>0?
+    `<div class="wk-summary">${done}/${total} concluídas (${pct}%)</div>`:"";
+}
+
 /* ═══════ LOG ═══════ */
 function renderLog(){
   const cd=Math.min(daysFrom(D.startDate),90);
@@ -634,7 +804,7 @@ function renderPlan(){
 }
 
 /* ═══════ RESET ═══════ */
-function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{}};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
+function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[]};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
 
 /* ═══════ INIT ═══════ */
 registerSW();
