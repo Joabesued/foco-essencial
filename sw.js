@@ -1,13 +1,11 @@
-const CACHE_NAME = 'foco-essencial-v4';
+const CACHE_NAME = 'foco-essencial-v5';
 const ASSETS = ['./index.html', './manifest.json'];
 
-// Install
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)));
   self.skipWaiting();
 });
 
-// Activate
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys => Promise.all(
@@ -17,27 +15,26 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch - offline support
 self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request).then(response => {
+      const clone = response.clone();
+      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+      return response;
+    }).catch(() => caches.match(e.request))
   );
 });
 
-// Notification click - open the app
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   e.waitUntil(
     self.clients.matchAll({ type: 'window' }).then(clients => {
-      if (clients.length > 0) {
-        return clients[0].focus();
-      }
+      if (clients.length > 0) return clients[0].focus();
       return self.clients.openWindow('./index.html');
     })
   );
 });
 
-// Listen for notification schedule messages from main page
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SHOW_NOTIFICATION') {
     self.registration.showNotification(e.data.title, {
