@@ -333,7 +333,8 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
     <span class="fin-month-label" id="fin-month-label"></span>
     <button class="back-btn" onclick="finChangeMonth(1)" style="margin:0">→</button>
   </div>
-  <div class="card" id="fin-summary"></div>
+  <div class="card" id="fin-projection"></div>
+  <div class="card" id="fin-received"></div>
   <div class="card">
     <div class="label">DIÁRIAS DO MÊS</div>
     <div id="fin-days"></div>
@@ -916,7 +917,21 @@ function renderFinance(){
   const workDays=getWorkingDays(finYear,finMonth);
   const totalWorkDays=workDays.length;
 
-  // Calculate received
+  // Projection: simple, static, based on R$100/day average
+  const projectionGross=totalWorkDays*AVG_DAILY;
+  const projectionTransport=totalWorkDays*TRANSPORT_COST;
+  const totalExpenses=D.finExpenses.reduce((a,e)=>a+e.value,0);
+
+  document.getElementById("fin-projection").innerHTML=`
+    <div class="label">PROJEÇÃO DO MÊS</div>
+    <div class="fin-row"><span class="fin-row-label">Dias úteis (seg-sáb)</span><span class="fin-row-value">${totalWorkDays}</span></div>
+    <div class="fin-row"><span class="fin-row-label">Bruto estimado (${totalWorkDays} × R$100)</span><span class="fin-row-value">R$ ${projectionGross.toFixed(2)}</span></div>
+    <div class="fin-row"><span class="fin-row-label">Transporte (${totalWorkDays} × R$12)</span><span class="fin-row-value red">- R$ ${projectionTransport.toFixed(2)}</span></div>
+    <div class="fin-row"><span class="fin-row-label">Gastos fixos</span><span class="fin-row-value red">- R$ ${totalExpenses.toFixed(2)}</span></div>
+    <div class="fin-row" style="border:none"><span class="fin-row-label" style="font-weight:600;color:var(--text)">Sobra estimada</span><span class="fin-row-value ${(projectionGross-projectionTransport-totalExpenses)>=0?'green':'red'}">R$ ${(projectionGross-projectionTransport-totalExpenses).toFixed(2)}</span></div>
+  `;
+
+  // Received: only what was actually marked
   let totalReceived=0;
   let daysReceived=0;
   workDays.forEach(wd=>{
@@ -926,32 +941,12 @@ function renderFinance(){
     }
   });
 
-  const transportTotal=totalWorkDays*TRANSPORT_COST;
-  const expectedGross=totalWorkDays*AVG_DAILY;
-  const expectedNet=expectedGross-transportTotal;
-  const receivedNet=totalReceived-(daysReceived*TRANSPORT_COST);
-  const remaining=totalWorkDays-daysReceived;
-  const projectedTotal=totalReceived+(remaining*AVG_DAILY);
-  const projectedNet=projectedTotal-(totalWorkDays*TRANSPORT_COST);
-
-  // Fixed expenses
-  const totalExpenses=D.finExpenses.reduce((a,e)=>a+e.value,0);
-  const freeBalance=receivedNet-totalExpenses;
-  const projectedFree=projectedNet-totalExpenses;
-
-  // Summary
-  document.getElementById("fin-summary").innerHTML=`
+  document.getElementById("fin-received").innerHTML=`
     <div class="fin-hero">
-      <div class="label">SALDO LÍQUIDO RECEBIDO</div>
-      <div class="fin-amount">R$ ${receivedNet.toFixed(2)}</div>
-      <div class="fin-sub">${daysReceived} de ${totalWorkDays} diárias recebidas</div>
+      <div class="label">RECEBIDO</div>
+      <div class="fin-amount">R$ ${totalReceived.toFixed(2)}</div>
+      <div class="fin-sub">${daysReceived} diárias marcadas</div>
     </div>
-    <div class="fin-row"><span class="fin-row-label">Expectativa bruta do mês</span><span class="fin-row-value">R$ ${expectedGross.toFixed(2)}</span></div>
-    <div class="fin-row"><span class="fin-row-label">Transporte (R$${TRANSPORT_COST} × ${totalWorkDays} dias)</span><span class="fin-row-value red">- R$ ${transportTotal.toFixed(2)}</span></div>
-    <div class="fin-row"><span class="fin-row-label">Expectativa líquida</span><span class="fin-row-value green">R$ ${expectedNet.toFixed(2)}</span></div>
-    <div class="fin-row"><span class="fin-row-label">Projeção com recebidos</span><span class="fin-row-value">R$ ${projectedNet.toFixed(2)}</span></div>
-    <div class="fin-row"><span class="fin-row-label">Gastos fixos</span><span class="fin-row-value red">- R$ ${totalExpenses.toFixed(2)}</span></div>
-    <div class="fin-row" style="border:none"><span class="fin-row-label" style="font-weight:600;color:var(--text)">Saldo livre projetado</span><span class="fin-row-value ${projectedFree>=0?'green':'red'}">R$ ${projectedFree.toFixed(2)}</span></div>
   `;
 
   // Days
@@ -987,19 +982,17 @@ function renderFinance(){
 
 function renderFinHome(){
   if(!D.finDays)D.finDays={};
-  if(!D.finExpenses)D.finExpenses=[];
   const now=new Date();
   const workDays=getWorkingDays(now.getFullYear(),now.getMonth());
   let received=0;let count=0;
   workDays.forEach(wd=>{if(D.finDays[wd.date]){received+=D.finDays[wd.date];count++;}});
-  const net=received-(count*TRANSPORT_COST);
-  const totalExp=D.finExpenses.reduce((a,e)=>a+e.value,0);
-  const free=net-totalExp;
+  const projection=workDays.length*AVG_DAILY;
   const el=document.getElementById("fin-home-summary");
   el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px">
-    <span>${count}/${workDays.length} diárias · Líquido: R$ ${net.toFixed(0)}</span>
-    <span style="color:${free>=0?'#4a8a4a':'#8a4a4a'};font-weight:700">Livre: R$ ${free.toFixed(0)}</span>
-  </div>`;
+    <span>Recebido: R$ ${received.toFixed(0)}</span>
+    <span style="color:var(--accent);font-weight:600">Projeção: R$ ${projection.toFixed(0)}</span>
+  </div>
+  <div class="dim" style="font-size:11px;margin-top:4px">${count}/${workDays.length} diárias marcadas</div>`;
 }
 
 /* ═══════ LOG ═══════ */
