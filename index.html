@@ -931,13 +931,16 @@ function renderFinance(){
 
   // Projection: simple, static, based on R$100/day average
   const projectionGross=totalWorkDays*AVG_DAILY;
+  const projectionTransport=totalWorkDays*TRANSPORT_COST;
+  const totalExpenses=D.finExpenses.reduce((a,e)=>a+e.value,0);
 
   document.getElementById("fin-projection").innerHTML=`
-    <div class="fin-hero">
-      <div class="label">PROJEÇÃO DO MÊS</div>
-      <div class="fin-amount">R$ ${projectionGross.toFixed(2)}</div>
-      <div class="fin-sub">${totalWorkDays} dias úteis × R$100</div>
-    </div>
+    <div class="label">PROJEÇÃO DO MÊS</div>
+    <div class="fin-row"><span class="fin-row-label">Dias úteis (seg-sáb)</span><span class="fin-row-value">${totalWorkDays}</span></div>
+    <div class="fin-row"><span class="fin-row-label">Bruto estimado (${totalWorkDays} × R$100)</span><span class="fin-row-value">R$ ${projectionGross.toFixed(2)}</span></div>
+    <div class="fin-row"><span class="fin-row-label">Transporte (${totalWorkDays} × R$12)</span><span class="fin-row-value red">- R$ ${projectionTransport.toFixed(2)}</span></div>
+    <div class="fin-row"><span class="fin-row-label">Gastos fixos</span><span class="fin-row-value red">- R$ ${totalExpenses.toFixed(2)}</span></div>
+    <div class="fin-row" style="border:none"><span class="fin-row-label" style="font-weight:600;color:var(--text)">Sobra estimada</span><span class="fin-row-value ${(projectionGross-projectionTransport-totalExpenses)>=0?'green':'red'}">R$ ${(projectionGross-projectionTransport-totalExpenses).toFixed(2)}</span></div>
   `;
 
   // Received: only what was actually marked

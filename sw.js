@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foco-essencial-v14';
+const CACHE_NAME = 'foco-essencial-v15';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
