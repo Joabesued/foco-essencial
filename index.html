@@ -350,6 +350,22 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
       <button class="wk-add-btn" onclick="addFixedExpense()">+</button>
     </div>
   </div>
+  <div class="card">
+    <div class="label">GASTOS DIÁRIOS</div>
+    <div class="fin-input-row" style="margin-top:4px;margin-bottom:8px">
+      <input class="fin-input" id="fin-daily-desc" placeholder="Descrição (ex: almoço)">
+      <input class="fin-input-sm" id="fin-daily-val" placeholder="R$" type="number" step="0.01">
+      <button class="wk-add-btn" onclick="addDailyExpense()">+</button>
+    </div>
+    <input class="fin-input" id="fin-daily-obs" placeholder="Observação (opcional)" style="width:100%;margin-bottom:10px;font-size:12px">
+    <div id="fin-daily-list"></div>
+    <div id="fin-daily-total" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <div class="label">RESUMO DO MÊS</div>
+    <canvas id="fin-chart" height="200" style="width:100%;margin-top:8px"></canvas>
+    <div id="fin-chart-legend" style="margin-top:10px"></div>
+  </div>
 </div>
 
 </div>
@@ -418,7 +434,7 @@ const NOTIF_SCHEDULE = [
 ];
 
 /* ═══════ STATE ═══════ */
-let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[]};
+let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[]};
 let editPri=-1, reflOpen=false, routineOpen=false, goalsOpen=false;
 let swReady=null;
 
@@ -445,6 +461,7 @@ function load(){
     if(!d.priorities)d.priorities=["","",""];
     if(!d.finDays)d.finDays={};
     if(!d.finExpenses)d.finExpenses=[];
+    if(!d.dailyExpenses)d.dailyExpenses=[];
     return d;
   }catch(e){return null}
 }
@@ -978,6 +995,141 @@ function renderFinance(){
       <span class="fin-expense-val">R$ ${e.value.toFixed(2)}</span>
       <button class="wk-del" onclick="removeExpense('${e.id}')">×</button>
     </div>`).join(""):'<div class="dim" style="font-size:12px;padding:8px 0">Nenhum gasto fixo cadastrado</div>';
+
+  // Daily expenses
+  renderDailyExpenses();
+  renderFinChart(totalReceived,totalExpenses);
+}
+
+function addDailyExpense(){
+  const descEl=document.getElementById("fin-daily-desc");
+  const valEl=document.getElementById("fin-daily-val");
+  const obsEl=document.getElementById("fin-daily-obs");
+  const desc=descEl.value.trim();
+  const val=parseFloat(valEl.value);
+  if(!desc||!val)return;
+  if(!D.dailyExpenses)D.dailyExpenses=[];
+  const monthKey=`${finYear}-${String(finMonth+1).padStart(2,'0')}`;
+  D.dailyExpenses.push({id:Date.now().toString(),date:tod(),month:monthKey,desc,value:val,obs:obsEl.value.trim()});
+  save();
+  descEl.value="";valEl.value="";obsEl.value="";
+  renderDailyExpenses();
+  renderFinChart();
+}
+
+function removeDailyExpense(id){
+  if(!D.dailyExpenses)return;
+  D.dailyExpenses=D.dailyExpenses.filter(e=>e.id!==id);
+  save();renderDailyExpenses();renderFinChart();
+}
+
+function renderDailyExpenses(){
+  if(!D.dailyExpenses)D.dailyExpenses=[];
+  const monthKey=`${finYear}-${String(finMonth+1).padStart(2,'0')}`;
+  const items=D.dailyExpenses.filter(e=>e.month===monthKey);
+  const total=items.reduce((a,e)=>a+e.value,0);
+
+  const list=document.getElementById("fin-daily-list");
+  if(items.length===0){
+    list.innerHTML='<div class="dim" style="font-size:12px;padding:8px 0">Nenhum gasto diário registrado</div>';
+  } else {
+    // Group by date
+    const grouped={};
+    items.forEach(e=>{
+      if(!grouped[e.date])grouped[e.date]=[];
+      grouped[e.date].push(e);
+    });
+    const dates=Object.keys(grouped).sort().reverse();
+    list.innerHTML=dates.map(date=>{
+      const dayItems=grouped[date];
+      const d=new Date(date+"T12:00:00");
+      const dayLabel=`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${WEEKDAYS[d.getDay()]}`;
+      return`<div style="margin-bottom:8px">
+        <div style="font-size:11px;color:var(--accent);font-weight:600;padding:6px 0;border-bottom:1px solid var(--border)">${dayLabel}</div>
+        ${dayItems.map(e=>`<div class="fin-expense" style="flex-wrap:wrap">
+          <span class="fin-expense-name">${esc(e.desc)}${e.obs?`<br><span style="font-size:11px;color:#555">${esc(e.obs)}</span>`:''}</span>
+          <span class="fin-expense-val">R$ ${e.value.toFixed(2)}</span>
+          <button class="wk-del" onclick="removeDailyExpense('${e.id}')">×</button>
+        </div>`).join("")}
+      </div>`;
+    }).join("");
+  }
+
+  document.getElementById("fin-daily-total").innerHTML=items.length>0?
+    `<div class="fin-row" style="border:none"><span class="fin-row-label" style="font-weight:600;color:var(--text)">Total gastos diários</span><span class="fin-row-value red">R$ ${total.toFixed(2)}</span></div>`:'';
+}
+
+function renderFinChart(){
+  if(!D.finDays)D.finDays={};
+  if(!D.dailyExpenses)D.dailyExpenses=[];
+  if(!D.finExpenses)D.finExpenses=[];
+
+  const monthKey=`${finYear}-${String(finMonth+1).padStart(2,'0')}`;
+  const workDays=getWorkingDays(finYear,finMonth);
+
+  // Totals
+  let totalReceived=0;
+  workDays.forEach(wd=>{if(D.finDays[wd.date])totalReceived+=D.finDays[wd.date];});
+  const totalFixed=D.finExpenses.reduce((a,e)=>a+e.value,0);
+  const totalDaily=D.dailyExpenses.filter(e=>e.month===monthKey).reduce((a,e)=>a+e.value,0);
+  const totalTransport=workDays.filter(wd=>D.finDays[wd.date]).length*TRANSPORT_COST;
+  const totalGastos=totalFixed+totalDaily+totalTransport;
+  const sobra=totalReceived-totalGastos;
+
+  // Chart
+  const canvas=document.getElementById("fin-chart");
+  const ctx=canvas.getContext("2d");
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=canvas.offsetWidth*dpr;
+  canvas.height=200*dpr;
+  ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth;
+  const H=200;
+
+  ctx.clearRect(0,0,W,H);
+
+  // Bar chart: Recebido vs Gastos
+  const barData=[
+    {label:"Recebido",value:totalReceived,color:"#4a8a4a"},
+    {label:"Transporte",value:totalTransport,color:"#8a6a3a"},
+    {label:"Fixos",value:totalFixed,color:"#8a4a4a"},
+    {label:"Diários",value:totalDaily,color:"#6a3a3a"},
+    {label:sobra>=0?"Sobra":"Déficit",value:Math.abs(sobra),color:sobra>=0?"#C8A44E":"#cc3333"},
+  ];
+
+  const maxVal=Math.max(...barData.map(d=>d.value),1);
+  const barW=(W-60)/barData.length;
+  const chartH=H-40;
+
+  barData.forEach((d,i)=>{
+    const x=30+i*barW+barW*0.15;
+    const bw=barW*0.7;
+    const bh=Math.max((d.value/maxVal)*chartH,2);
+    const y=chartH-bh+10;
+
+    ctx.fillStyle=d.color;
+    ctx.beginPath();
+    if(ctx.roundRect){ctx.roundRect(x,y,bw,bh,4);}else{ctx.rect(x,y,bw,bh);}
+    ctx.fill();
+
+    // Value on top
+    ctx.fillStyle="#E8E4DC";
+    ctx.font="11px 'DM Sans',sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText(`R$${d.value.toFixed(0)}`,x+bw/2,y-6);
+
+    // Label below
+    ctx.fillStyle="#777";
+    ctx.font="10px 'DM Sans',sans-serif";
+    ctx.fillText(d.label,x+bw/2,H-4);
+  });
+
+  // Legend
+  document.getElementById("fin-chart-legend").innerHTML=`
+    <div class="fin-row" style="border:none;padding:4px 0"><span class="fin-row-label">Total recebido</span><span class="fin-row-value green">R$ ${totalReceived.toFixed(2)}</span></div>
+    <div class="fin-row" style="border:none;padding:4px 0"><span class="fin-row-label">Total gastos (transporte + fixos + diários)</span><span class="fin-row-value red">R$ ${totalGastos.toFixed(2)}</span></div>
+    <div class="fin-row" style="border:none;padding:4px 0"><span class="fin-row-label" style="font-weight:600;color:var(--text)">${sobra>=0?"Sobra":"Déficit"}</span><span class="fin-row-value ${sobra>=0?'green':'red'}">R$ ${Math.abs(sobra).toFixed(2)}</span></div>
+  `;
 }
 
 function renderFinHome(){
@@ -1035,7 +1187,7 @@ function renderPlan(){
 }
 
 /* ═══════ RESET ═══════ */
-function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[]};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
+function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[]};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
 
 /* ═══════ INIT ═══════ */
 registerSW();
