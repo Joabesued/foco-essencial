@@ -152,6 +152,33 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
 .fin-input-sm{width:90px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);outline:none;font-family:var(--sans);text-align:right}
 .fin-month-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .fin-month-label{font-family:var(--serif);font-size:18px;font-weight:700}
+
+/* LagFree */
+.lf-capital-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+.lf-capital-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.lf-capital-num{font-family:var(--serif);font-size:20px;font-weight:700;line-height:1;margin-bottom:2px}
+.lf-capital-lbl{font-size:9px;color:var(--dim);letter-spacing:.5px}
+.lf-product{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px}
+.lf-product-top{display:flex;justify-content:space-between;align-items:center}
+.lf-product-name{font-size:14px;font-weight:600}
+.lf-product-margin{font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px}
+.lf-product-details{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.6}
+.lf-form{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.lf-form-row{display:flex;gap:6px}
+.lf-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);outline:none;font-family:var(--sans)}
+.lf-input-sm{width:80px}
+.lf-phase{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.lf-phase-check{width:22px;height:22px;border-radius:6px;border:2px solid #333;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;cursor:pointer;transition:all .2s}
+.lf-phase-check.done{background:var(--green);border-color:var(--green);color:#B0E8C4}
+.lf-phase-info{flex:1}
+.lf-phase-title{font-size:13px;font-weight:600}
+.lf-phase-title.done{text-decoration:line-through;opacity:.5}
+.lf-phase-tasks{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.5}
+.lf-expense{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #111;font-size:13px}
+.lf-expense-desc{flex:1}
+.lf-expense-cat{font-size:10px;color:var(--dim);background:var(--bg);padding:2px 6px;border-radius:4px}
+.lf-expense-val{font-weight:600;color:#8a4a4a}
+.lf-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -269,6 +296,7 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
   <div class="nav-row fi fi6" style="flex-wrap:wrap">
     <button class="nav-btn" onclick="go('week')">📅 Semana</button>
     <button class="nav-btn" onclick="go('finance')">💰 Financeiro</button>
+    <button class="nav-btn" onclick="go('lagfree')">🎮 LagFree</button>
     <button class="nav-btn" onclick="go('log')">📝 Log</button>
     <button class="nav-btn" onclick="go('plan')">📋 Plano</button>
   </div>
@@ -363,6 +391,63 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
   </div>
 </div>
 
+<!-- LAGFREE -->
+<div id="s-lagfree" class="page hidden">
+  <button class="back-btn" onclick="go('home')">← Voltar</button>
+  <h2 class="scr-title">🎮 LagFree</h2>
+  <p class="scr-sub">Gestão da revenda de periféricos gamer</p>
+
+  <div class="card" id="lf-capital"></div>
+
+  <div class="card">
+    <div class="label">PRODUTOS EM ESTOQUE</div>
+    <div id="lf-products"></div>
+    <div style="margin-top:8px">
+      <div class="refl-header" onclick="toggleLfForm()">
+        <span class="dim" style="font-size:12px">Cadastrar produto</span>
+        <span class="refl-toggle" id="lf-form-toggle">+</span>
+      </div>
+      <div id="lf-form" class="lf-form hidden">
+        <input class="lf-input" id="lf-p-name" placeholder="Nome do produto">
+        <div class="lf-form-row">
+          <input class="lf-input" id="lf-p-brand" placeholder="Marca">
+          <input class="lf-input" id="lf-p-supplier" placeholder="Fornecedor">
+        </div>
+        <div class="lf-form-row">
+          <input class="lf-input" id="lf-p-cost" placeholder="Custo R$" type="number" step="0.01">
+          <input class="lf-input" id="lf-p-price" placeholder="Venda R$" type="number" step="0.01">
+          <input class="lf-input lf-input-sm" id="lf-p-qty" placeholder="Qtd" type="number">
+        </div>
+        <button class="btn-gold" onclick="addLfProduct()" style="width:100%;padding:10px">Cadastrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">GASTOS OPERACIONAIS</div>
+    <div id="lf-expenses"></div>
+    <div class="lf-form-row" style="margin-top:8px">
+      <input class="lf-input" id="lf-e-desc" placeholder="Descrição">
+      <select class="lf-input lf-input-sm" id="lf-e-cat" style="color:var(--dim)">
+        <option value="frete">Frete</option>
+        <option value="embalagem">Embalagem</option>
+        <option value="das_mei">DAS MEI</option>
+        <option value="trafego">Tráfego</option>
+        <option value="outro">Outro</option>
+      </select>
+      <input class="lf-input lf-input-sm" id="lf-e-val" placeholder="R$" type="number" step="0.01">
+      <button class="wk-add-btn" onclick="addLfExpense()">+</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">PROGRESSO DA JORNADA</div>
+    <div id="lf-phases"></div>
+  </div>
+
+  <div class="card" id="lf-summary"></div>
+</div>
+
 </div>
 
 <script>
@@ -429,7 +514,7 @@ const NOTIF_SCHEDULE = [
 ];
 
 /* ═══════ STATE ═══════ */
-let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[]};
+let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[],lf:{capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}}};
 let editPri=-1, reflOpen=false, routineOpen=false, goalsOpen=false;
 let swReady=null;
 
@@ -457,6 +542,10 @@ function load(){
     if(!d.finDays)d.finDays={};
     if(!d.finExpenses)d.finExpenses=[];
     if(!d.dailyExpenses)d.dailyExpenses=[];
+    if(!d.lf)d.lf={capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}};
+    if(!d.lf.products)d.lf.products=[];
+    if(!d.lf.expenses)d.lf.expenses=[];
+    if(!d.lf.phases)d.lf.phases={};
     return d;
   }catch(e){return null}
 }
@@ -549,7 +638,7 @@ setInterval(checkNotifications,30000);
 
 /* ═══════ SCREENS ═══════ */
 function go(s){
-  ["home","log","stats","plan","goals","week","finance"].forEach(n=>document.getElementById("s-"+n).classList.toggle("hidden",n!==s));
+  ["home","log","stats","plan","goals","week","finance","lagfree"].forEach(n=>document.getElementById("s-"+n).classList.toggle("hidden",n!==s));
   if(s==="home")renderHome();
   if(s==="log")renderLog();
   if(s==="stats")renderStats();
@@ -557,6 +646,7 @@ function go(s){
   if(s==="goals")renderGoalsFull();
   if(s==="week")renderWeek();
   if(s==="finance")renderFinance();
+  if(s==="lagfree")renderLagFree();
   window.scrollTo(0,0);
 }
 
@@ -1106,6 +1196,161 @@ function renderFinHome(){
   <div class="dim" style="font-size:11px;margin-top:4px">${count}/${workDays.length} diárias marcadas</div>`;
 }
 
+/* ═══════ LAGFREE ═══════ */
+const LF_PHASES=[
+  {id:"fundacao",title:"Fundação",tasks:"MEI, conta PJ, definir nicho, pesquisa de mercado"},
+  {id:"cadastros",title:"Cadastros",tasks:"Conta em marketplaces, perfil profissional, catálogo base"},
+  {id:"estoque",title:"Estoque",tasks:"Primeiro lote, organização, fotos dos produtos"},
+  {id:"anuncios",title:"Anúncios",tasks:"Criar anúncios, descrições, precificação"},
+  {id:"trafego",title:"Tráfego",tasks:"Campanha paga, redes sociais, divulgação"},
+  {id:"resultado",title:"Resultado",tasks:"Primeira venda, análise de margem, reinvestimento"},
+];
+
+let lfFormOpen=false;
+function toggleLfForm(){lfFormOpen=!lfFormOpen;document.getElementById("lf-form").classList.toggle("hidden",!lfFormOpen);document.getElementById("lf-form-toggle").textContent=lfFormOpen?"−":"+";}
+
+function addLfProduct(){
+  const name=document.getElementById("lf-p-name").value.trim();
+  const brand=document.getElementById("lf-p-brand").value.trim();
+  const supplier=document.getElementById("lf-p-supplier").value.trim();
+  const cost=parseFloat(document.getElementById("lf-p-cost").value);
+  const price=parseFloat(document.getElementById("lf-p-price").value);
+  const qty=parseInt(document.getElementById("lf-p-qty").value)||1;
+  if(!name||!cost||!price)return;
+  D.lf.products.push({id:Date.now().toString(),name,brand,supplier,cost,price,qty});
+  save();
+  ["lf-p-name","lf-p-brand","lf-p-supplier","lf-p-cost","lf-p-price","lf-p-qty"].forEach(id=>document.getElementById(id).value="");
+  renderLagFree();
+}
+
+function removeLfProduct(id){
+  D.lf.products=D.lf.products.filter(p=>p.id!==id);
+  save();renderLagFree();
+}
+
+function addLfExpense(){
+  const desc=document.getElementById("lf-e-desc").value.trim();
+  const cat=document.getElementById("lf-e-cat").value;
+  const val=parseFloat(document.getElementById("lf-e-val").value);
+  if(!desc||!val)return;
+  D.lf.expenses.push({id:Date.now().toString(),date:tod(),desc,cat,value:val});
+  save();
+  document.getElementById("lf-e-desc").value="";
+  document.getElementById("lf-e-val").value="";
+  renderLagFree();
+}
+
+function removeLfExpense(id){
+  D.lf.expenses=D.lf.expenses.filter(e=>e.id!==id);
+  save();renderLagFree();
+}
+
+function toggleLfPhase(id){
+  D.lf.phases[id]=!D.lf.phases[id];
+  save();renderLagFree();
+}
+
+function updateLfCapital(field){
+  const val=prompt(`Novo valor para ${field==='capital'?'capital disponível':field==='invested'?'capital investido':'lucro acumulado'}:`,D.lf[field]);
+  if(val===null)return;
+  D.lf[field]=parseFloat(val)||0;
+  save();renderLagFree();
+}
+
+function renderLagFree(){
+  const lf=D.lf;
+
+  // Capital
+  document.getElementById("lf-capital").innerHTML=`
+    <div class="label">PAINEL DE CAPITAL</div>
+    <div class="lf-capital-grid">
+      <div class="lf-capital-box" onclick="updateLfCapital('capital')" style="cursor:pointer">
+        <div class="lf-capital-num" style="color:var(--accent)">R$${lf.capital.toFixed(0)}</div>
+        <div class="lf-capital-lbl">DISPONÍVEL</div>
+      </div>
+      <div class="lf-capital-box" onclick="updateLfCapital('invested')" style="cursor:pointer">
+        <div class="lf-capital-num" style="color:#C8A44E">R$${lf.invested.toFixed(0)}</div>
+        <div class="lf-capital-lbl">INVESTIDO</div>
+      </div>
+      <div class="lf-capital-box" onclick="updateLfCapital('profit')" style="cursor:pointer">
+        <div class="lf-capital-num" style="color:#4a8a4a">R$${lf.profit.toFixed(0)}</div>
+        <div class="lf-capital-lbl">LUCRO</div>
+      </div>
+    </div>
+    <div class="dim" style="font-size:10px;text-align:center;margin-top:6px">Toque para editar</div>
+  `;
+
+  // Products
+  const products=lf.products||[];
+  document.getElementById("lf-products").innerHTML=products.length>0?
+    products.map(p=>{
+      const margin=((p.price-p.cost)/p.cost*100).toFixed(0);
+      const marginColor=margin>=50?'#4a8a4a':margin>=30?'#C8A44E':'#8a4a4a';
+      return`<div class="lf-product">
+        <div class="lf-product-top">
+          <div class="lf-product-name">${esc(p.name)}</div>
+          <span class="lf-product-margin" style="color:${marginColor};background:${marginColor}22">${margin}%</span>
+        </div>
+        <div class="lf-product-details">
+          ${p.brand?`${esc(p.brand)} · `:''}${p.supplier?`${esc(p.supplier)} · `:''}Custo: R$${p.cost.toFixed(2)} · Venda: R$${p.price.toFixed(2)} · Qtd: ${p.qty}
+        </div>
+        <div style="text-align:right;margin-top:4px"><button class="wk-del" onclick="removeLfProduct('${p.id}')">×</button></div>
+      </div>`;
+    }).join(''):'<div class="dim" style="font-size:12px;padding:8px 0">Nenhum produto cadastrado</div>';
+
+  // Expenses
+  const expenses=lf.expenses||[];
+  const catLabels={frete:"Frete",embalagem:"Embalagem",das_mei:"DAS MEI",trafego:"Tráfego",outro:"Outro"};
+  document.getElementById("lf-expenses").innerHTML=expenses.length>0?
+    expenses.map(e=>`<div class="lf-expense">
+      <span class="lf-expense-desc">${esc(e.desc)}</span>
+      <span class="lf-expense-cat">${catLabels[e.cat]||e.cat}</span>
+      <span class="lf-expense-val">R$${e.value.toFixed(2)}</span>
+      <button class="wk-del" onclick="removeLfExpense('${e.id}')">×</button>
+    </div>`).join(''):'<div class="dim" style="font-size:12px;padding:8px 0">Nenhum gasto registrado</div>';
+
+  // Phases
+  document.getElementById("lf-phases").innerHTML=LF_PHASES.map(p=>{
+    const done=lf.phases[p.id];
+    return`<div class="lf-phase" onclick="toggleLfPhase('${p.id}')">
+      <div class="lf-phase-check ${done?'done':''}">${done?'✓':''}</div>
+      <div class="lf-phase-info">
+        <div class="lf-phase-title ${done?'done':''}">${p.title}</div>
+        <div class="lf-phase-tasks">${p.tasks}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Summary
+  const totalCost=products.reduce((a,p)=>a+p.cost*p.qty,0);
+  const totalRevenue=products.reduce((a,p)=>a+p.price*p.qty,0);
+  const totalExpenses=expenses.reduce((a,e)=>a+e.value,0);
+  const estProfit=totalRevenue-totalCost-totalExpenses;
+  const avgMargin=products.length>0?products.reduce((a,p)=>a+((p.price-p.cost)/p.cost*100),0)/products.length:0;
+
+  document.getElementById("lf-summary").innerHTML=`
+    <div class="label">RESUMO DO CICLO</div>
+    <div class="lf-summary-grid">
+      <div class="lf-capital-box">
+        <div class="lf-capital-num" style="color:#8a4a4a">R$${(totalCost+totalExpenses).toFixed(0)}</div>
+        <div class="lf-capital-lbl">INVESTIDO</div>
+      </div>
+      <div class="lf-capital-box">
+        <div class="lf-capital-num" style="color:var(--accent)">R$${totalRevenue.toFixed(0)}</div>
+        <div class="lf-capital-lbl">RECEITA ESPERADA</div>
+      </div>
+      <div class="lf-capital-box">
+        <div class="lf-capital-num" style="color:${estProfit>=0?'#4a8a4a':'#8a4a4a'}">R$${estProfit.toFixed(0)}</div>
+        <div class="lf-capital-lbl">LUCRO ESTIMADO</div>
+      </div>
+      <div class="lf-capital-box">
+        <div class="lf-capital-num" style="color:var(--accent)">${avgMargin.toFixed(0)}%</div>
+        <div class="lf-capital-lbl">MARGEM MÉDIA</div>
+      </div>
+    </div>
+  `;
+}
+
 /* ═══════ LOG ═══════ */
 function renderLog(){
   const cd=Math.min(daysFrom(D.startDate),90);
@@ -1146,7 +1391,7 @@ function renderPlan(){
 }
 
 /* ═══════ RESET ═══════ */
-function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[]};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
+function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[],lf:{capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}}};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
 
 /* ═══════ INIT ═══════ */
 registerSW();
