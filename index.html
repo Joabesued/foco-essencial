@@ -179,6 +179,14 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
 .lf-expense-cat{font-size:10px;color:var(--dim);background:var(--bg);padding:2px 6px;border-radius:4px}
 .lf-expense-val{font-weight:600;color:#8a4a4a}
 .lf-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+
+/* Beard tracker */
+.beard-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:4px}
+.beard-day{width:100%;aspect-ratio:1;border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--dim);cursor:pointer;background:var(--bg)}
+.beard-day.done{background:var(--green-bg);border-color:var(--green);color:#B0E8C4}
+.beard-day.today{border-color:var(--accent)}
+.beard-day.future{opacity:.3;cursor:default}
+.beard-stats{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:8px}
 </style>
 </head>
 <body>
@@ -282,6 +290,15 @@ button{font-family:var(--sans);cursor:pointer;-webkit-tap-highlight-color:transp
       <span class="refl-toggle" id="refl-toggle">+</span>
     </div>
     <div id="refl-body" class="hidden"></div>
+  </div>
+
+  <!-- Beard tracker -->
+  <div class="card fi fi5" id="beard-card">
+    <div class="refl-header" onclick="toggleBeard()">
+      <span class="label">🧔 TRATAMENTO BARBA</span>
+      <span class="refl-toggle" id="beard-toggle">+</span>
+    </div>
+    <div id="beard-body" class="hidden" style="margin-top:10px"></div>
   </div>
 
   <!-- Goals -->
@@ -514,7 +531,7 @@ const NOTIF_SCHEDULE = [
 ];
 
 /* ═══════ STATE ═══════ */
-let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[],lf:{capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}}};
+let D=load()||{startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[],lf:{capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}},beardDays:[]};
 let editPri=-1, reflOpen=false, routineOpen=false, goalsOpen=false;
 let swReady=null;
 
@@ -546,6 +563,7 @@ function load(){
     if(!d.lf.products)d.lf.products=[];
     if(!d.lf.expenses)d.lf.expenses=[];
     if(!d.lf.phases)d.lf.phases={};
+    if(!d.beardDays)d.beardDays=[];
     return d;
   }catch(e){return null}
 }
@@ -1196,6 +1214,71 @@ function renderFinHome(){
   <div class="dim" style="font-size:11px;margin-top:4px">${count}/${workDays.length} diárias marcadas</div>`;
 }
 
+/* ═══════ BEARD TRACKER ═══════ */
+let beardOpen=false;
+function toggleBeard(){
+  beardOpen=!beardOpen;
+  document.getElementById("beard-body").classList.toggle("hidden",!beardOpen);
+  document.getElementById("beard-toggle").textContent=beardOpen?"−":"+";
+  if(beardOpen)renderBeard();
+}
+
+function toggleBeardDay(dateStr){
+  if(!D.beardDays)D.beardDays=[];
+  const today=tod();
+  if(dateStr>today)return;
+  const idx=D.beardDays.indexOf(dateStr);
+  if(idx>=0)D.beardDays.splice(idx,1);
+  else D.beardDays.push(dateStr);
+  save();renderBeard();
+}
+
+function renderBeard(){
+  if(!D.beardDays)D.beardDays=[];
+  const now=new Date();
+  const year=now.getFullYear();
+  const month=now.getMonth();
+  const today=tod();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const firstDow=new Date(year,month,1).getDay();
+  const months=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  // Count streak and total this month
+  const thisMonthDays=D.beardDays.filter(d=>d.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)).length;
+  let streak=0;
+  const sorted=[...D.beardDays].sort().reverse();
+  for(let i=0;i<sorted.length;i++){
+    const d=new Date(sorted[i]+"T12:00:00");
+    const expected=new Date(now);
+    expected.setDate(expected.getDate()-i);
+    expected.setHours(12,0,0,0);
+    if(d.toISOString().split("T")[0]===expected.toISOString().split("T")[0])streak++;
+    else break;
+  }
+
+  let html=`<div style="text-align:center;font-size:13px;color:var(--dim);margin-bottom:8px">${months[month]} ${year}</div>`;
+  html+=`<div class="beard-grid">`;
+
+  // Weekday headers
+  ["D","S","T","Q","Q","S","S"].forEach(d=>{html+=`<div style="font-size:9px;color:#444;text-align:center">${d}</div>`;});
+
+  // Empty cells before first day
+  for(let i=0;i<firstDow;i++)html+=`<div></div>`;
+
+  // Days
+  for(let d=1;d<=daysInMonth;d++){
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isDone=D.beardDays.includes(dateStr);
+    const isToday=dateStr===today;
+    const isFuture=dateStr>today;
+    html+=`<div class="beard-day ${isDone?'done':''} ${isToday?'today':''} ${isFuture?'future':''}" onclick="${isFuture?'':'toggleBeardDay(\''+dateStr+'\')'}">${d}</div>`;
+  }
+  html+=`</div>`;
+  html+=`<div class="beard-stats"><span>${thisMonthDays} dias este mês</span><span style="color:var(--accent);font-weight:600">${streak} em sequência</span></div>`;
+
+  document.getElementById("beard-body").innerHTML=html;
+}
+
 /* ═══════ LAGFREE ═══════ */
 const LF_PHASES=[
   {id:"fundacao",title:"Fundação",tasks:"MEI, conta PJ, definir nicho, pesquisa de mercado"},
@@ -1391,7 +1474,7 @@ function renderPlan(){
 }
 
 /* ═══════ RESET ═══════ */
-function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[],lf:{capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}}};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
+function resetApp(){if(!confirm("Tem certeza? Apaga todos os dados."))return;D={startDate:tod(),log:[],priorities:["","",""],sleepLog:[],notifiedToday:{},goalSteps:{},weekTasks:[],finDays:{},finExpenses:[],dailyExpenses:[],lf:{capital:1000,invested:0,profit:0,products:[],expenses:[],phases:{}},beardDays:[]};save();editPri=-1;reflOpen=false;routineOpen=false;goalsOpen=false;go("home");}
 
 /* ═══════ INIT ═══════ */
 registerSW();
